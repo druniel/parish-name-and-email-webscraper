@@ -23,20 +23,28 @@ for row in table.find_all("tr"):
         email = cols[2].get_text(strip=True)
         farnosti_data.append((nazev, email))
 
-# Uložení do Excelu
-wb = Workbook()
-ws = wb.active
-ws.title = "Farnosti"
-ws.append(["Název farnosti", "E-mail"])
+# save to excel
+try:
+    wb = Workbook()
+    ws = wb.active
+    if ws is None:
+        ws = wb.create_sheet("Farnosti")
+    else:
+        ws.title = "Farnosti"
 
-for nazev, email in farnosti_data:
-    ws.append([nazev, email])
+    if ws:
+        ws.append(["Název farnosti", "E-mail"])
+        for nazev, email in farnosti_data:
+            ws.append([nazev, email])
 
-wb.save("farnosti_nrb.xlsx")
-ws.append(["Název farnosti", "E-mail"])
-
-for nazev, email in farnosti_data:
-    ws.append([nazev, email])
-
-wb.save("farnosti_nitra.xlsx")
-print("Hotovo!")
+        try:
+            wb.save("farnosti_nitra.xlsx")
+            print("Hotovo!")
+        except PermissionError:
+            print("Nelze uložit soubor - možná je otevřený v jiném programu")
+        except Exception as e:
+            print(f"Chyba při ukládání souboru: {e}")
+    else:
+        print("Nepodařilo se vytvořit list v Excelu")
+except Exception as e:
+    print(f"Chyba při práci s Excelem: {e}")

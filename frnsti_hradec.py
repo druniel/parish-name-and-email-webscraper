@@ -38,17 +38,36 @@ for letter in string.ascii_uppercase:
 
     for a_tag in farnost_links:
         nazev_farnosti = a_tag.text.strip()
-        detail_url = BASE_URL + a_tag["href"]
+        try:
+            if not a_tag:
+                print(f"Přeskakuji farnost - chybějící odkaz")
+                continue
+            
+            href = a_tag.get("href")
+            if not href:
+                print(f"Přeskakuji farnost - prázdný odkaz")
+                continue
+            
+            detail_url = BASE_URL + str(href)
+
+        except AttributeError as e:
+            print(f"Chyba při zpracování odkazu: {e}")
+            continue
 
         detail_response = fetch_with_retry(detail_url)
         if detail_response:
             detail_soup = BeautifulSoup(detail_response.text, "html.parser")
 
-            # Získání názvu farnosti (z nadpisu detailu)
-            nazev_tag = detail_soup.select_one("div.region-page-title h1")
-            nazev = nazev_tag.get_text(strip=True) if nazev_tag else nazev_farnosti
+            # parish name
+            try:
+                nazev_tag = detail_soup.select_one("div.region-page-title h1")
+                nazev = nazev_tag.get_text(strip=True) if nazev_tag else nazev_farnosti
 
-            # Najde všechny e-maily
+            except AttributeError as e:
+                print(f"Chyba při zpracování detailu farnosti {nazev_farnosti}: {e}")
+                nazev = nazev_farnosti
+
+            # find all emails
             email_tags = detail_soup.select("a[href^='mailto:']")
             emails = [tag.get_text(strip=True) for tag in email_tags]
             emaily_spojene = ", ".join(emails)
@@ -60,14 +79,28 @@ for letter in string.ascii_uppercase:
         farnosti_data.append((nazev, emaily_spojene))
         time.sleep(0.5)
 
-# Uložení do Excelu
-wb = Workbook()
-ws = wb.active
-ws.title = "Farnosti Hradec"
-ws.append(["Název farnosti", "E-mail(y)"])
+# save to excel
+try:
+    wb = Workbook()
+    ws = wb.active
+    if ws is None:
+        ws = wb.create_sheet("Farnosti Hradec")
+    else:
+        ws.title = "Farnosti Hradec"
 
-for farnost, email in farnosti_data:
-    ws.append([farnost, email])
+    if ws:
+        ws.append(["Název farnosti", "E-mail(y)"])
+        for farnost, email in farnosti_data:
+            ws.append([farnost, email])
 
-wb.save("farnosti_kontakty_hradec.xlsx")
-print("Hotovo!")
+        try:
+            wb.save("farnosti_kontakty_hradec.xlsx")
+            print("Hotovo!")
+        except PermissionError:
+            print("Nelze uložit soubor - možná je otevřený v jiném programu")
+        except Exception as e:
+            print(f"Chyba při ukládání souboru: {e}")
+    else:
+        print("Nepodařilo se vytvořit list v Excelu")
+except Exception as e:
+    print(f"Chyba při práci s Excelem: {e}")

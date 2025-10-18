@@ -28,17 +28,19 @@ if not main_response:
 
 soup = BeautifulSoup(main_response.text, "html.parser")
 
-# Seznam na uložení (název farnosti, email)
+# list for storage of final data to be printed
 farnosti_data = []
 
-# Všechny farnosti jsou v <div class="row"> uvnitř <div>, které obsahuje <h4> (dekanát)
+# parsing the html code of the page
 for dekanat_div in soup.select("div > h4.font-weight-bold"):
     parent_div = dekanat_div.parent
+    if not parent_div:
+        continue
     farnosti_links = parent_div.select("div.row div.col-3 a")
     
     for farnost_link in farnosti_links:
         farnost_url = farnost_link['href']
-        # načteme detailní stránku farnosti
+        # load parish detail
         detail_response = fetch_with_retry(farnost_url)
         if not detail_response:
             print(f"Nepodařilo se načíst detail farnosti: {farnost_url}")
@@ -46,26 +48,37 @@ for dekanat_div in soup.select("div > h4.font-weight-bold"):
         
         detail_soup = BeautifulSoup(detail_response.text, "html.parser")
         
-        # Název farnosti je v <h2>
+        # parish name in h2
         nazev_farnosti_tag = detail_soup.select_one("div.card-body h2")
         nazev_farnosti = nazev_farnosti_tag.get_text(strip=True) if nazev_farnosti_tag else farnost_link.text.strip()
         
-        # Email je v <a href^="mailto:">
+        # parish email
         email_tag = detail_soup.select_one("a[href^='mailto:']")
         email = email_tag.get_text(strip=True) if email_tag else ""
         
         farnosti_data.append((nazev_farnosti, email))
         print(f"Načteno: {nazev_farnosti} - {email}")
-        time.sleep(0.5)  # krátká pauza mezi požadavky
+        time.sleep(0.5)
 
-# Uložíme do Excelu
+# save to excel
 wb = Workbook()
-ws = wb.active
-ws.title = "Farnosti bbdieceza"
-ws.append(["Název farnosti", "E-mail"])
+if not wb.active:
+    ws = wb.create_sheet("Farnosti bbdieceza")
+else:
+    ws = wb.active
+    ws.title = "Farnosti bbdieceza"
 
-for nazev, email in farnosti_data:
-    ws.append([nazev, email])
+if ws:
+    ws.append(["Název farnosti", "E-mail"])
+    for nazev, email in farnosti_data:
+        ws.append([nazev, email])
 
-wb.save("farnosti_bbdieceza.xlsx")
-print("Hotovo!")
+    try:
+        wb.save("farnosti_bbdieceza.xlsx")
+        print("Hotovo!")
+    except PermissionError:
+        print("Nelze uložit soubor - možná je otevřený v jiném programu")
+    except Exception as e:
+        print(f"Chyba při ukládání souboru: {e}")
+else:
+    print("Nepodařilo se vytvořit list v Excelu")

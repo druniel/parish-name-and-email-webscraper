@@ -42,9 +42,9 @@ for row in table_rows:
 
     nazev_obce = a_tag.text.strip()
     nazev_farnosti = f"Římskokatolická farnost {nazev_obce}"
-    detail_url = BASE_URL + a_tag["href"]
+    detail_url = BASE_URL + str(a_tag["href"])
 
-    # Načteme detail farnosti
+    # load parish detail
     detail_response = fetch_with_retry(detail_url)
     if detail_response:
         detail_soup = BeautifulSoup(detail_response.text, "html.parser")
@@ -52,7 +52,6 @@ for row in table_rows:
         for p_tag in detail_soup.select("div.kontakty p"):
             strong = p_tag.find("strong")
             if strong and "E-mail" in strong.text:
-                # Odeber "E-mail:" a ponech jen text po něm
                 email = p_tag.get_text(strip=True).replace("E-mail:", "").strip()
                 break
     else:
@@ -62,13 +61,27 @@ for row in table_rows:
     farnosti_data.append((nazev_farnosti, email))
     time.sleep(0.5)
 
-wb = Workbook()
-ws = wb.active
-ws.title = "Farnosti olomoucké diecéze"
-ws.append(["Název farnosti", "E-mail"])
+try:
+    wb = Workbook()
+    ws = wb.active
+    if ws is None:
+        ws = wb.create_sheet("Farnosti olomoucké diecéze")
+    else:
+        ws.title = "Farnosti olomoucké diecéze"
 
-for farnost, email in farnosti_data:
-    ws.append([farnost, email])
+    if ws:
+        ws.append(["Název farnosti", "E-mail"])
+        for farnost, email in farnosti_data:
+            ws.append([farnost, email])
 
-wb.save("farnosti_kontakty_olomouc.xlsx")
-print("Hotovo!")
+        try:
+            wb.save("farnosti_kontakty_olomouc.xlsx")
+            print("Hotovo!")
+        except PermissionError:
+            print("Nelze uložit soubor - možná je otevřený v jiném programu")
+        except Exception as e:
+            print(f"Chyba při ukládání souboru: {e}")
+    else:
+        print("Nepodařilo se vytvořit list v Excelu")
+except Exception as e:
+    print(f"Chyba při práci s Excelem: {e}")

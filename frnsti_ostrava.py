@@ -37,9 +37,9 @@ for a_tag in soup.select("li a.link_text"):
 
     nazev_obce = strong.text.strip()
     nazev_farnosti = f"Římskokatolická farnost {nazev_obce}"
-    detail_url = BASE_URL + a_tag["href"]
+    detail_url = BASE_URL + str(a_tag["href"])
 
-    # 3. Načteme detailní stránku s retry
+    # load detail with retry
     detail_response = fetch_with_retry(detail_url)
     if detail_response:
         detail_soup = BeautifulSoup(detail_response.text, "html.parser")
@@ -52,13 +52,27 @@ for a_tag in soup.select("li a.link_text"):
     farnosti_data.append((nazev_farnosti, email))
     time.sleep(0.5)
 
-wb = Workbook()
-ws = wb.active
-ws.title = "Farnosti ostravská diecéze"
-ws.append(["Název farnosti", "E-mail"])
+try:
+    wb = Workbook()
+    ws = wb.active
+    if ws is None:
+        ws = wb.create_sheet("Farnosti ostravská diecéze")
+    else:
+        ws.title = "Farnosti ostravská diecéze"
 
-for farnost, email in farnosti_data:
-    ws.append([farnost, email])
+    if ws:
+        ws.append(["Název farnosti", "E-mail"])
+        for farnost, email in farnosti_data:
+            ws.append([farnost, email])
 
-wb.save("farnosti_kontakty_ostrava.xlsx")
-print("Hotovo!")
+        try:
+            wb.save("farnosti_kontakty_ostrava.xlsx")
+            print("Hotovo!")
+        except PermissionError:
+            print("Nelze uložit soubor - možná je otevřený v jiném programu")
+        except Exception as e:
+            print(f"Chyba při ukládání souboru: {e}")
+    else:
+        print("Nepodařilo se vytvořit list v Excelu")
+except Exception as e:
+    print(f"Chyba při práci s Excelem: {e}")

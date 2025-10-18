@@ -28,7 +28,7 @@ if not main_response:
 
 soup = BeautifulSoup(main_response.text, "html.parser")
 
-# Najdi všechny farnosti v blocích <div class="gal item_*">
+# find all parishes
 farnosti_divs = soup.select("div.gal.item_A, div.gal.item_B, div.gal.item_C, div.gal.item_D, div.gal.item_E, div.gal.item_F, div.gal.item_G, div.gal.item_H, div.gal.item_CH, div.gal.item_I, div.gal.item_J, div.gal.item_K, div.gal.item_L, div.gal.item_M, div.gal.item_N, div.gal.item_O, div.gal.item_P, div.gal.item_Q, div.gal.item_R, div.gal.item_S, div.gal.item_T, div.gal.item_U, div.gal.item_V, div.gal.item_W, div.gal.item_X, div.gal.item_Y, div.gal.item_Z")
 
 farnosti_data = []
@@ -38,7 +38,8 @@ for div in farnosti_divs:
     if not a_tag:
         continue
     relative_url = a_tag["href"]
-    detail_url = f"{BASE_URL}/{relative_url.strip('/')}"  # přidání BASE_URL
+    relative_url_str = str(relative_url).strip("/")
+    detail_url = f"{BASE_URL}/{relative_url_str}"
 
     detail_response = fetch_with_retry(detail_url)
     if not detail_response:
@@ -56,14 +57,28 @@ for div in farnosti_divs:
     print(f"Načteno: {nazev} - {email}")
     time.sleep(0.5)
 
-# Uložení do Excelu
-wb = Workbook()
-ws = wb.active
-ws.title = "Farnosti rožňavská diecéze"
-ws.append(["Název farnosti", "E-mail"])
+# excel
+try:
+    wb = Workbook()
+    ws = wb.active
+    if ws is None:
+        ws = wb.create_sheet("Farnosti rožňavská diecéze")
+    else:
+        ws.title = "Farnosti rožňavská diecéze"
 
-for nazev, email in farnosti_data:
-    ws.append([nazev, email])
+    if ws:
+        ws.append(["Název farnosti", "E-mail"])
+        for nazev, email in farnosti_data:
+            ws.append([nazev, email])
 
-wb.save("farnosti_roznava.xlsx")
-print("Hotovo! Uloženo jako 'farnosti_roznava.xlsx'")
+        try:
+            wb.save("farnosti_roznava.xlsx")
+            print("Hotovo! Uloženo jako 'farnosti_roznava.xlsx'")
+        except PermissionError:
+            print("Nelze uložit soubor - možná je otevřený v jiném programu")
+        except Exception as e:
+            print(f"Chyba při ukládání souboru: {e}")
+    else:
+        print("Nepodařilo se vytvořit list v Excelu")
+except Exception as e:
+    print(f"Chyba při práci s Excelem: {e}")

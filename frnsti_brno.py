@@ -23,7 +23,7 @@ while True:
         break
 
     for row in rows:
-        # Název farnosti
+        # parish
         farnost_nazev_tag = row.select_one("span.seznam-podnazev")
         farnost_nazev = farnost_nazev_tag.text.strip() if farnost_nazev_tag else ""
         email_tag = row.select_one("a[href^='mailto:']")
@@ -33,13 +33,24 @@ while True:
 
     page += 1
 
-wb = Workbook()
-ws = wb.active
-ws.title = "Farnosti"
-ws.append(["Název farnosti", "E-mail"])
+# save to excel
+try:
+    wb = Workbook()
+    ws = wb.active
+    if ws is None:
+        ws = wb.create_sheet("Farnosti")
+    else:
+        ws.title = "Farnosti"
 
-for farnost, email in farnosti_data:
-    ws.append([farnost, email])
+    ws.append(["Název farnosti", "E-mail"])
 
-wb.save("farnosti_kontakty_brno.xlsx")
-print("Hotovo! Data uložena do 'farnosti_kontakty_brno.xlsx'")
+    for farnost, email in farnosti_data:
+        if ws is not None:
+            ws.append([farnost, email])
+
+    wb.save("farnosti_kontakty_brno.xlsx")
+    print("Hotovo! Data uložena do 'farnosti_kontakty_brno.xlsx'")
+except PermissionError:
+    print("Nelze uložit soubor - možná je otevřený v jiném programu")
+except Exception as e:
+    print(f"Chyba při ukládání do Excelu: {e}")
